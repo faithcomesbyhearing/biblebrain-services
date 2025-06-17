@@ -1,0 +1,19 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      golang: latest
+    commands:
+      - cd backend
+      - yarn install --frozen-lockfile
+      - yarn global add serverless@3
+  build:
+    commands:
+      - echo $environment
+      - make clean build
+      - sls deploy --stage ${environment}
+
+  post_build:
+    commands:
+      - echo Build completed on `date`

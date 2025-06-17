@@ -1,0 +1,21 @@
+version: "2"
+sql:
+  - engine: "mysql"
+    schema: 
+      - "./sqlc/schema/licensor"
+      - "./sqlc/schema/bible"
+    queries:
+      - "./sqlc/queries/licensor/copyright.sql"
+      - "./sqlc/queries/licensor/licensor.sql"
+    gen:
+      go:
+        package: "sqlc"
+        sql_package: "database/sql"
+        sql_driver: "github.com/go-sql-driver/mysql"
+        out: "sqlc/generated"
+        emit_json_tags: true
+rules:
+  - name: no-mysql
+    message: "invalid engine: mysql"
+    rule: |
+      config.engine == "mysql"

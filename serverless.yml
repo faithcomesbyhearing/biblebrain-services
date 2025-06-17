@@ -1,0 +1,108 @@
+service: biblebrain-services
+
+frameworkVersion: "3"
+useDotenv: true
+provider:
+  name: aws
+  vpc:
+    securityGroupIds:
+      - ${self:custom.securityGroupId.${self:provider.stage}}
+    subnetIds:
+      - ${self:custom.subnetId1.${self:provider.stage}}
+      - ${self:custom.subnetId2.${self:provider.stage}}
+  httpApi:
+    # Payload format version (note: use quotes in YAML: '1.0' or '2.0') (default: '2.0')
+    payload: "1.0"
+    # Enable detailed CloudWatch metrics (default: false)
+    metrics: true
+    # Enable CORS HTTP headers with default settings (allow all)
+    # Can be fine-tuned with specific options
+    cors: true
+  logs:
+    # Enable HTTP API logs
+    # This can either be set to `httpApi: true` to use defaults, or configured via subproperties
+    # Can only be configured if the API is created by Serverless Framework
+    httpApi:
+      format: '{ "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "responseLength":"$context.responseLength" }'
+  iam:
+    role:
+      name: biblebrain-services-lambda-role-${opt:stage, 'dev'}
+  runtime: go1.x
+  stage: ${opt:stage, 'dev'}
+  region: ${env:AWS_REGION, 'us-west-2'}
+  environment:
+    BIBLEBRAIN_DSN_SSM_ID: /${self:provider.stage}/biblebrain/sql/dsn-otc00l0j3b9ggbgc
+
+package:
+  patterns:
+    - "!./**"
+    - ./bin/**
+
+functions:
+  status:
+    handler: bin/status
+    events:
+      - httpApi:
+          path: /api/status
+          method: get
+  bservice:
+    url: true
+    handler: bin/bservice
+    timeout: 10
+    memorySize: 128
+    events:
+      - httpApi:
+          path: /api/copyright/create
+          method: post
+
+custom:
+  stages:
+    - local
+    - dev
+    - prod
+  serverless-offline:
+    useDocker: true
+    dockerHost: host.docker.internal
+    dockerNetwork: bridge
+    localEnvironment: true
+  serverless-offline-ssm:
+    stages:
+      - local
+    ssm:
+      "/local/biblebrain/sql/dsn-otc00l0j3b9ggbgc": ${env:BIBLEBRAIN_DSN, "xxx"}
+  securityGroupId:
+    local: sg-local
+    dev: sg-00da5d8c7d42e1559
+    prod: sg-07ed4cf239758b0e8
+  subnetId1:
+    local: subnet-local
+    dev: subnet-0514270361bd9075e
+    prod: subnet-03350bfd970a16ba1
+  subnetId2:
+    local: subnet-local
+    dev: subnet-058e5e5335948eaac
+    prod: subnet-0e2a671cac564cd63
+  prune:
+    automatic: true
+    number: 3
+
+plugins:
+  - serverless-offline-ssm
+  - serverless-offline
+  - serverless-stage-manager
+  - serverless-prune-plugin
+  - serverless-s3-local
+
+resources:
+  Resources:
+    blimpSSMParameterAPIGatewayId:
+      Type: AWS::SSM::Parameter
+      Properties:
+        Name: /${self:provider.stage}/biblebrain-services/api-gateway-id
+        Type: String
+        Value:
+          Fn::GetAtt:
+            - "HttpApi"
+            - "ApiId"
+        Tags:
+          Environment: ${self:provider.stage}
