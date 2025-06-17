@@ -15,7 +15,7 @@ const getFilesetCopyrights = `-- name: GetFilesetCopyrights :many
 SELECT 
     GROUP_CONCAT(DISTINCT bfco.organization_id) AS organization_id_list, bible_fileset_copyrights.copyright_date,
     bible_fileset_copyrights.copyright,
-    bible_fileset_copyrights.copyright_description, bft.description product_code
+    bft.description product_code
 FROM bible_fileset_copyrights
 JOIN (SELECT bfco2.hash_id, bfco2.organization_id FROM bible_fileset_copyright_organizations bfco2 GROUP BY bfco2.hash_id, bfco2.organization_id) bfco ON bfco.hash_id = bible_fileset_copyrights.hash_id
 JOIN bible_fileset_tags bft ON bft.hash_id = bible_fileset_copyrights.hash_id AND bft.name = 'stock_no'
@@ -24,45 +24,45 @@ AND EXISTS (
     SELECT 1
     FROM bible_filesets bf
     WHERE bf.hash_id = bible_fileset_copyrights.hash_id
-    AND bf.set_type_code IN ("audio", "audio_drama")
-)
-AND EXISTS (
-    SELECT 1
-    FROM bible_fileset_tags bft_codec
-    WHERE bft_codec.hash_id = bible_fileset_copyrights.hash_id
-    AND bft_codec.name = "codec"
-)
-AND EXISTS (
-    SELECT 1
-    FROM bible_fileset_tags bft_bitrate
-    WHERE bft_bitrate.hash_id = bible_fileset_copyrights.hash_id
-    AND bft_bitrate.name = "bitrate"
+    AND bf.set_type_code IN (/*SLICE:typeCodes*/?)
 )
 GROUP BY
     bible_fileset_copyrights.copyright_date,
     bible_fileset_copyrights.copyright,
-    bible_fileset_copyrights.copyright_description, bft.description
+    bft.description
 ORDER BY product_code
 `
 
-type GetFilesetCopyrightsRow struct {
-	OrganizationIDList   sql.NullString `json:"organization_id_list"`
-	CopyrightDate        sql.NullString `json:"copyright_date"`
-	Copyright            string         `json:"copyright"`
-	CopyrightDescription string         `json:"copyright_description"`
-	ProductCode          string         `json:"product_code"`
+type GetFilesetCopyrightsParams struct {
+	ProductCodes []string `json:"productCodes"`
+	TypeCodes    []string `json:"typeCodes"`
 }
 
-func (q *Queries) GetFilesetCopyrights(ctx context.Context, productcodes []string) ([]GetFilesetCopyrightsRow, error) {
+type GetFilesetCopyrightsRow struct {
+	OrganizationIDList sql.NullString `json:"organization_id_list"`
+	CopyrightDate      sql.NullString `json:"copyright_date"`
+	Copyright          string         `json:"copyright"`
+	ProductCode        string         `json:"product_code"`
+}
+
+func (q *Queries) GetFilesetCopyrights(ctx context.Context, arg GetFilesetCopyrightsParams) ([]GetFilesetCopyrightsRow, error) {
 	query := getFilesetCopyrights
 	var queryParams []interface{}
-	if len(productcodes) > 0 {
-		for _, v := range productcodes {
+	if len(arg.ProductCodes) > 0 {
+		for _, v := range arg.ProductCodes {
 			queryParams = append(queryParams, v)
 		}
-		query = strings.Replace(query, "/*SLICE:productCodes*/?", strings.Repeat(",?", len(productcodes))[1:], 1)
+		query = strings.Replace(query, "/*SLICE:productCodes*/?", strings.Repeat(",?", len(arg.ProductCodes))[1:], 1)
 	} else {
 		query = strings.Replace(query, "/*SLICE:productCodes*/?", "NULL", 1)
+	}
+	if len(arg.TypeCodes) > 0 {
+		for _, v := range arg.TypeCodes {
+			queryParams = append(queryParams, v)
+		}
+		query = strings.Replace(query, "/*SLICE:typeCodes*/?", strings.Repeat(",?", len(arg.TypeCodes))[1:], 1)
+	} else {
+		query = strings.Replace(query, "/*SLICE:typeCodes*/?", "NULL", 1)
 	}
 	rows, err := q.db.QueryContext(ctx, query, queryParams...)
 	if err != nil {
@@ -76,7 +76,6 @@ func (q *Queries) GetFilesetCopyrights(ctx context.Context, productcodes []strin
 			&i.OrganizationIDList,
 			&i.CopyrightDate,
 			&i.Copyright,
-			&i.CopyrightDescription,
 			&i.ProductCode,
 		); err != nil {
 			return nil, err

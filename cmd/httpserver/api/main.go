@@ -25,7 +25,7 @@ func setupRouter() *ginadapter.GinLambda {
 	gengine := gin.Default()
 	api := gengine.Group("/api")
 	{
-		api.POST("/copyright/create", copyright_controller.Create)
+		api.GET("/copyright", copyright_controller.Get)
 	}
 
 	gengine.NoRoute(func(c *gin.Context) {

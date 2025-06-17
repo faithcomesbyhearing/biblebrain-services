@@ -22,19 +22,19 @@ func TestStreamCopyrightIntegration(t *testing.T) {
 
 	// Define a package with known product codes
 	pkg := copyright_service.Package{
-		Products: []copyright_service.Product{
-			{ProductCode: "P1PUI/LAN"},
-			{ProductCode: "N2SWA/HNV"},
-			{ProductCode: "N2POR/BSP"},
-			{ProductCode: "N2ENG/NIV"},
-			{ProductCode: "P1KEB/CIE"},
+		Products: []string{
+			"P1PUI/LAN",
+			"N2SWA/HNV",
+			"N2POR/BSP",
+			"N2ENG/NIV",
+			"P1KEB/CIE",
 		},
 	}
 
 	// Stream the PDF (audio=true)
-	copyrights, err := mgr.GetCopyrightBy(t.Context(), pkg.ProductCodes())
+	copyrights, err := mgr.GetCopyrightBy(t.Context(), pkg.Products, "audio")
 	require.NoError(t, err)
-	reader, err := mgr.StreamCopyright(t.Context(), copyrights, true)
+	reader, err := mgr.StreamCopyright(t.Context(), copyrights, "audio")
 	require.NoError(t, err)
 	defer reader.Close()
 
@@ -62,7 +62,7 @@ func TestGetCopyrightByIntegration(t *testing.T) {
 	mgr := copyright_service.New(sqlCon)
 
 	codes := []string{"P1PUI/LAN", "N2SWA/HNV", "N2POR/BSP", "N2ENG/NIV", "P1KEB/CIE"}
-	results, err := mgr.GetCopyrightBy(t.Context(), codes)
+	results, err := mgr.GetCopyrightBy(t.Context(), codes, "audio")
 	require.NoError(t, err)
 	require.NotEmpty(t, results, "expected at least one copyright record")
 
