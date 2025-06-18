@@ -31,7 +31,7 @@ provider:
   stage: ${opt:stage, 'dev'}
   region: ${env:AWS_REGION, 'us-west-2'}
   environment:
-    BIBLEBRAIN_DSN_SSM_ID: /${self:provider.stage}/biblebrain/sql/dsn-otc00l0j3b9ggbgc
+    BIBLEBRAIN_DSN_SSM_ID: /${self:provider.stage}/biblebrain-services/rds/DSN
 
 package:
   patterns:
