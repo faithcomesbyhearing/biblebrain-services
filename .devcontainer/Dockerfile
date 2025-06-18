@@ -1,42 +1,45 @@
-# See here for image contents: https://github.com/microsoft/vscode-dev-containers/tree/v0.231.6/containers/go/.devcontainer/base.Dockerfile
-
-# [Choice] Go version (use -bullseye variants on local arm64/Apple Silicon): 1, 1.16, 1.17, 1-bullseye, 1.16-bullseye, 1.17-bullseye, 1-buster, 1.16-buster, 1.17-buster
+# Use the dev-prefixed tag so the FROM actually exists
 ARG VARIANT="1.24-bullseye"
-FROM mcr.microsoft.com/vscode/devcontainers/go:1-${VARIANT}
+FROM mcr.microsoft.com/vscode/devcontainers/go:dev-${VARIANT}
 
-# Install Okta CLI
 ARG OKTA_VERSION=0.10.0
-RUN curl -fsSL "https://github.com/okta/okta-cli/releases/download/okta-cli-tools-${OKTA_VERSION}/okta-cli-linux-${OKTA_VERSION}-x86_64.zip" | funzip > /usr/local/bin/okta
-RUN chmod +x /usr/local/bin/okta
-
 ARG USERNAME=vscode
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+ARG NODE_VERSION="lts/*"
 
-# [Optional] Add sudo support. Omit if you don't need to install software after connecting.
+# 1) Install sudo, curl, unzip; clean apt cache
 RUN apt-get update \
-    && apt-get install -y sudo \
-    && echo $USERNAME ALL=\(root\) NOPASSWD:ALL > /etc/sudoers.d/$USERNAME \
-    && chmod 0440 /etc/sudoers.d/$USERNAME
+  && apt-get install -y --no-install-recommends sudo curl unzip \
+  && rm -rf /var/lib/apt/lists/* \
+  # add sudoers entry for vscode
+  && echo "$USERNAME ALL=(root) NOPASSWD:ALL" > /etc/sudoers.d/$USERNAME \
+  && chmod 0440 /etc/sudoers.d/$USERNAME
 
+# 2) Sync UID/GID for non-root user
 RUN groupmod --gid $USER_GID $USERNAME \
-    && usermod --uid $USER_UID --gid $USER_GID $USERNAME \
-    && chown -R $USER_UID:$USER_GID /home/$USERNAME
+  && usermod --uid $USER_UID --gid $USER_GID $USERNAME \
+  && chown -R $USER_UID:$USER_GID /home/$USERNAME
 
-# [Choice] Node.js version: none, lts/*, 16, 14, 12, 10
-ARG NODE_VERSION="none"
-RUN if [ "${NODE_VERSION}" != "none" ]; then su vscode -c "umask 0002 && . /usr/local/share/nvm/nvm.sh && nvm install ${NODE_VERSION} 2>&1"; fi
+# 3) Install Okta CLI
+RUN curl -fsSL \
+    "https://github.com/okta/okta-cli/releases/download/okta-cli-tools-${OKTA_VERSION}/okta-cli-linux-${OKTA_VERSION}-x86_64.zip" \
+  | funzip > /usr/local/bin/okta \
+  && chmod +x /usr/local/bin/okta
 
-RUN yarn global add serverless
+# 4) Install Node via NVM and global packages
+RUN su $USERNAME -c ". /usr/local/share/nvm/nvm.sh && \
+    nvm install ${NODE_VERSION} && \
+    npm install -g yarn serverless"
 
-COPY awslambdarpc /usr/local/bin
+# 5) Copy any local binaries/scripts
+COPY awslambdarpc /usr/local/bin/
+COPY postCreateCommand.sh /scripts/
+RUN chmod +x /scripts/postCreateCommand.sh
 
-RUN apt-get install -y
+# 6) Set working directory
+WORKDIR /workspace
+USER $USERNAME
 
-RUN mkdir -p /scripts
-COPY postCreateCommand.sh /scripts
-WORKDIR /scripts
-RUN chmod +x postCreateCommand.sh
-
-RUN chmod -R 777 /home/vscode
-
+# (Optional) Run your post-create hook
+CMD ["/scripts/postCreateCommand.sh"]

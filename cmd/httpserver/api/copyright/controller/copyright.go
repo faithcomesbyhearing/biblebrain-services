@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 
 	connection_service "biblebrain-services/service/connection"
@@ -12,11 +13,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	FormatPDF  = "pdf"
+	FormatJSON = "json"
+	ModeAudio  = "audio"
+	ModeVideo  = "video"
+	ModeText   = "text"
+)
+
+// Errors for validation.
 var ErrProductsRequired = errors.New("products are required")
+
+var ErrInvalidMode = errors.New("invalid mode")
+
+var ErrInvalidFormat = errors.New("invalid format")
 
 type CopyrightRequest struct {
 	// Add fields as needed for the request
-	Products []copyright_service.Product `binding:"required" json:"productList"`
+	Products []string `binding:"required"  form:"productCode"`
+	Format   string   `binding:"omitempty" form:"format"`
+	Mode     string   `binding:"omitempty" form:"mode"`
 }
 
 func (c *CopyrightRequest) Validate() error {
@@ -25,14 +41,22 @@ func (c *CopyrightRequest) Validate() error {
 		return ErrProductsRequired
 	}
 
+	if c.Format != "json" && c.Format != "pdf" {
+		return fmt.Errorf("%w: %q, only 'pdf' or 'json' is supported", ErrInvalidFormat, c.Format)
+	}
+
+	if c.Mode != "audio" && c.Mode != "video" && c.Mode != "text" {
+		return fmt.Errorf("%w: %q, only 'audio', 'video', or 'text' are supported", ErrInvalidMode, c.Mode)
+	}
+
 	return nil
 }
 
-// POST /copyright/create.
-func Create(gctx *gin.Context) {
+// GET api/copyright.
+func Get(gctx *gin.Context) {
 	var req CopyrightRequest
-	if err := gctx.ShouldBindJSON(&req); err != nil {
-		gctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+	if err := gctx.ShouldBindQuery(&req); err != nil {
+		gctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request 2 data"})
 
 		return
 	}
@@ -53,7 +77,7 @@ func Create(gctx *gin.Context) {
 		Products: req.Products,
 	}
 	// Create the copyright PDF
-	copyrights, err := cser.GetCopyrightBy(ctx, packageRequest.ProductCodes())
+	copyrights, err := cser.GetCopyrightBy(ctx, packageRequest.Products, req.Mode)
 	if err != nil {
 		gctx.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get copyrights: %v", err)})
 
@@ -66,26 +90,37 @@ func Create(gctx *gin.Context) {
 		return
 	}
 
-	pdf, err := cser.StreamCopyright(ctx, copyrights, true)
-	if err != nil {
-		gctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	switch req.Format {
+	case FormatPDF:
+		pdf, err := cser.StreamCopyright(ctx, copyrights, req.Mode)
+		if err != nil {
+			slog.Error("Failed to stream copyright PDF", "error", err)
+			gctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 
-		return
-	}
+			return
+		}
 
-	defer pdf.Close()
+		defer pdf.Close()
 
-	// Tell the client it’s a PDF
-	gctx.Header("Content-Type", "application/pdf")
-	// Optionally suggest a filename:
-	gctx.Header("Content-Disposition", fmt.Sprintf(`inline; filename="%s.pdf"`, packageRequest.ID()))
+		// Tell the client it’s a PDF
+		gctx.Header("Content-Type", "application/pdf")
+		// Optionally suggest a filename:
+		gctx.Header("Content-Disposition", fmt.Sprintf(`inline; filename="%s.pdf"`, packageRequest.ID()))
 
-	if _, err := io.Copy(gctx.Writer, pdf); err != nil {
-		// This is a streaming error, so we return an error response
-		gctx.AbortWithStatusJSON(
-			http.StatusInternalServerError,
-			gin.H{"error": fmt.Sprintf("streaming PDF failed: %v", err)},
-		)
+		if _, err := io.Copy(gctx.Writer, pdf); err != nil {
+			// This is a streaming error, so we return an error response
+			gctx.AbortWithStatusJSON(
+				http.StatusInternalServerError,
+				gin.H{"error": fmt.Sprintf("streaming PDF failed: %v", err)},
+			)
+
+			return
+		}
+	case FormatJSON:
+		// If the format is JSON, return the copyrights as JSON
+		gctx.JSON(http.StatusOK, copyrights)
+	default:
+		gctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid format specified"})
 
 		return
 	}

@@ -52,8 +52,8 @@ functions:
     memorySize: 128
     events:
       - httpApi:
-          path: /api/copyright/create
-          method: post
+          path: /api/copyright
+          method: get
 
 custom:
   stages:

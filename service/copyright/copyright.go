@@ -24,30 +24,13 @@ const (
 	SLASH      = "/"
 	DASH       = "-"
 	UNDERSCORE = "_"
+	ModeAudio  = "audio"
+	ModeVideo  = "video"
+	ModeText   = "text"
 )
 
-type ProductCode string
-
-func (p ProductCode) String() string {
-	return string(p)
-}
-
-type Product struct {
-	ProductCode ProductCode `json:"productCode"`
-}
-
 type Package struct {
-	Products []Product `json:"productList"`
-}
-
-func (p Package) ProductCodes() []string {
-	productCodesSlice := make([]string, 0, len(p.Products))
-
-	for _, product := range p.Products {
-		productCodesSlice = append(productCodesSlice, product.ProductCode.String())
-	}
-
-	return productCodesSlice
+	Products []string `form:"productList"`
 }
 
 func (p Package) IsEmpty() bool {
@@ -61,7 +44,8 @@ func (p Package) ID() string {
 		if i > 0 {
 			productCodes.WriteString(DASH)
 		}
-		sanitizedProductCode := strings.ReplaceAll(product.ProductCode.String(), SLASH, UNDERSCORE)
+		// Replace SLASH with UNDERSCORE to avoid issues in file paths
+		sanitizedProductCode := strings.ReplaceAll(product, SLASH, UNDERSCORE)
 		productCodes.WriteString(sanitizedProductCode)
 	}
 
@@ -69,21 +53,20 @@ func (p Package) ID() string {
 }
 
 type OrganizationsForCopyright struct {
-	OrganizationID      uint
-	OrganizationSlug    string
-	OrganizationName    string
-	OrganizationLogoURL string
+	OrganizationID      uint   `json:"organizationId"`
+	OrganizationSlug    string `json:"organizationSlug"`
+	OrganizationName    string `json:"organizationName"`
+	OrganizationLogoURL string `json:"organizationLogoUrl"`
 }
 
 type ByOrganizations struct {
-	OrganizationIDList string
+	OrganizationIDList string `json:"-"`
 	// it is an abstract struct to wrap the copyright information
-	Organizations        []OrganizationsForCopyright
-	ProductCode          string
-	MediaID              string
-	CopyrightDate        string
-	Copyright            string
-	CopyrightDescription string
+	Organizations []OrganizationsForCopyright `json:"organizations"`
+	// ProductCode is the product code for which the copyright applies.
+	ProductCode   string `json:"productCode"`
+	CopyrightDate string `json:"copyrightDate"`
+	Copyright     string `json:"copyright"`
 }
 
 type LogoOrganization struct {
@@ -109,8 +92,8 @@ const (
 )
 
 type Service interface {
-	GetCopyrightBy(ctx context.Context, productCodes []string) ([]ByOrganizations, error)
-	StreamCopyright(ctx context.Context, copyrights []ByOrganizations, isAudio bool) (io.ReadCloser, error)
+	GetCopyrightBy(ctx context.Context, productCodes []string, mode string) ([]ByOrganizations, error)
+	StreamCopyright(ctx context.Context, copyrights []ByOrganizations, mode string) (io.ReadCloser, error)
 }
 
 // Define the struct that implements the interface.
@@ -145,7 +128,7 @@ var ErrProductsNotFound = errors.New("no copyrights found for the provided produ
 func (m *Manager) StreamCopyright(
 	ctx context.Context,
 	copyrights []ByOrganizations,
-	isAudio bool,
+	mode string,
 ) (io.ReadCloser, error) {
 	if len(copyrights) == 0 {
 		return nil, ErrProductsNotFound
@@ -153,7 +136,7 @@ func (m *Manager) StreamCopyright(
 
 	var gridSize int
 
-	if isAudio {
+	if mode == ModeAudio {
 		gridSize = CopyrightGridAudio
 	} else {
 		gridSize = CopyrightGridVideo
@@ -174,12 +157,33 @@ func (m *Manager) StreamCopyright(
 	return reader, nil
 }
 
+// getTypeCodes returns a list of type codes based on the provided mode.
+func getTypeCodes(mode string) []string {
+	switch mode {
+	case ModeAudio:
+		return []string{"audio_drama", "audio"}
+	case ModeVideo:
+		return []string{"video_stream"}
+	case ModeText:
+		return []string{"text_plain", "text_html", "text_json", "text_format"}
+	default:
+		return []string{}
+	}
+}
+
+// GetCopyrightBy retrieves copyright information for the specified product codes and mode.
 func (m *Manager) GetCopyrightBy(
 	ctx context.Context,
 	productCodes []string,
+	mode string,
 ) ([]ByOrganizations, error) {
+	typeCodes := getTypeCodes(mode)
+
 	// 1) Fetch the raw rows
-	rows, err := m.Query.GetFilesetCopyrights(ctx, productCodes)
+	rows, err := m.Query.GetFilesetCopyrights(ctx, sqlc.GetFilesetCopyrightsParams{
+		ProductCodes: productCodes,
+		TypeCodes:    typeCodes,
+	})
 	if err != nil {
 		slog.Error("fetching fileset copyrights", "error", err)
 
@@ -228,13 +232,11 @@ func (m *Manager) GetCopyrightBy(
 	out := make([]ByOrganizations, 0, len(rows))
 	for _, row := range rows {
 		entry := ByOrganizations{
-			OrganizationIDList:   row.OrganizationIDList.String,
-			ProductCode:          row.ProductCode,
-			CopyrightDate:        row.CopyrightDate.String,
-			Copyright:            row.Copyright,
-			CopyrightDescription: row.CopyrightDescription,
-			Organizations:        []OrganizationsForCopyright{},
-			MediaID:              "",
+			OrganizationIDList: row.OrganizationIDList.String,
+			ProductCode:        row.ProductCode,
+			CopyrightDate:      row.CopyrightDate.String,
+			Copyright:          row.Copyright,
+			Organizations:      []OrganizationsForCopyright{},
 		}
 		for part := range strings.SplitSeq(row.OrganizationIDList.String, ",") {
 			s := strings.TrimSpace(part)
