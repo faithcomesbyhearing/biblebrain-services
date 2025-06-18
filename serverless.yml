@@ -27,7 +27,7 @@ provider:
   iam:
     role:
       name: biblebrain-services-lambda-role-${opt:stage, 'dev'}
-  runtime: go1.x
+  runtime: provided.al2
   stage: ${opt:stage, 'dev'}
   region: ${env:AWS_REGION, 'us-west-2'}
   environment:
