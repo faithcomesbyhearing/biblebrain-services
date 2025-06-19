@@ -81,18 +81,13 @@ make precommit
 ### Copyright Creation Endpoint
 
 - **Path**: `/api/copyright/create`
-- **Method**: POST
-- **Request Body**: JSON with array of products
-  ```json
-  {
-    "productList": [
-      {"ProductCode": "P1PUI/LAN"},
-      {"ProductCode": "N2ENG/NIV"}
-    ]
-  }
-  ```
+- **Method**: GET
+- **Query Parameter**:
+   - `productList`: A comma-separated list of product codes (e.g. `P1PUI/LAN,N2ENG/NIV`)
+   - `format`: json or pdf
+   - `mode`: audio, video or text
 - **Response**: PDF document containing copyright information
-- **Content-Type**: application/pdf
+- **Content-Type**: application/pdf or application/json
 
 ## Environment Configuration
 

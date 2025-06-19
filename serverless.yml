@@ -37,6 +37,7 @@ package:
   patterns:
     - "!./**"
     - ./bin/**
+    - "./bootstrap"  # include the root-level bootstrap binary
 
 functions:
   bservice:
