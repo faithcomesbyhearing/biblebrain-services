@@ -39,3 +39,7 @@ profile.cov
 # Go workspace file
 go.work
 go.work.sum
+
+# binary output
+bootstrap.lock
+bootstrap

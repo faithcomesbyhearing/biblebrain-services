@@ -27,7 +27,7 @@ provider:
   iam:
     role:
       name: biblebrain-services-lambda-role-${opt:stage, 'dev'}
-  runtime: provided.al2
+  runtime: ${self:custom.runtimeMap.${self:provider.stage}}
   stage: ${opt:stage, 'dev'}
   region: ${env:AWS_REGION, 'us-west-2'}
   environment:
@@ -39,20 +39,17 @@ package:
     - ./bin/**
 
 functions:
-  status:
-    handler: bin/status
-    events:
-      - httpApi:
-          path: /api/status
-          method: get
   bservice:
     url: true
-    handler: bin/bservice
+    handler: bootstrap
     timeout: 10
     memorySize: 128
     events:
       - httpApi:
           path: /api/copyright
+          method: get
+      - httpApi:
+          path: /api/status
           method: get
 
 custom:
@@ -60,8 +57,14 @@ custom:
     - local
     - dev
     - prod
+  runtimeMap:
+    local: provided       # use plain “provided” when running offline locally
+    dev:   provided.al2023
+    prod:  provided.al2023
   serverless-offline:
     useDocker: true
+    lambdaPort: 8080
+    lambdaHost: lambda   # resolves to the `lambda` service in Docker Compose
     dockerHost: host.docker.internal
     dockerNetwork: bridge
     localEnvironment: true

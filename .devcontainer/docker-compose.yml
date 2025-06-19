@@ -34,6 +34,16 @@ services:
     # network_mode: host
     extra_hosts:
       - "host.docker.internal:host-gateway"
+  lambda:
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.lambda
+    container_name: lambda-local
+    ports:
+      - "4009:8080"                              # match your offline port
+    volumes:
+      - ../bootstrap:/var/task/bootstrap:ro  # mount your built Lambda binary
 
 networks:
   app-net:
