@@ -7,6 +7,7 @@ import (
 	"os"
 
 	copyright_controller "biblebrain-services/cmd/httpserver/api/copyright/controller"
+	status_controller "biblebrain-services/cmd/httpserver/api/status/controller"
 	util "biblebrain-services/util"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -25,6 +26,7 @@ func setupRouter() *ginadapter.GinLambda {
 	gengine := gin.Default()
 	api := gengine.Group("/api")
 	{
+		api.GET("/status", status_controller.Get)
 		api.GET("/copyright", copyright_controller.Get)
 	}
 

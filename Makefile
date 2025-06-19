@@ -13,7 +13,7 @@ clean:
 	rm -rf ./bin ./vendor 
 
 offline: build
-	yarn sls offline --stage ${environment} --httpPort 3008 --noTimeout
+	yarn sls offline --stage ${environment} --httpPort 3009 --noTimeout
 
 deploy: clean build
 	sls deploy --stage ${environment} 
@@ -28,8 +28,6 @@ gomodgen:
 GO_ENV=GOARCH=${GOARCH} GOOS=${GOOS} CGO_ENABLED=0
 
 create-build:
-	env ${GO_ENV} go build ${GOFLAGS} -o bin/status status/main.go
-	env ${GO_ENV} go build ${GOFLAGS} -o bin/bservice cmd/httpserver/api/main.go
-
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags lambda.norpc -o bootstrap cmd/httpserver/api/main.go
 vet:
 	go vet ./...
