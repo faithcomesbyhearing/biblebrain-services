@@ -25,12 +25,13 @@ provider:
     httpApi:
       format: '{ "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "requestTime":"$context.requestTime", "httpMethod":"$context.httpMethod","routeKey":"$context.routeKey", "status":"$context.status","protocol":"$context.protocol", "responseLength":"$context.responseLength" }'
   iam:
-    role: !Ref LambdaExecutionRole
-  # statements:
-  #   - Effect: Allow
-  #     Action:
-  #       - ssm:GetParameter
-  #     Resource: "*"
+    role:
+      name: biblebrain-services-lambda-role-${opt:stage, 'dev'}
+      statements:
+        - Effect: Allow
+          Action:
+            - ssm:GetParameter
+          Resource: "*"
   runtime: ${self:custom.runtimeMap.${self:provider.stage}}
   stage: ${opt:stage, 'dev'}
   region: ${env:AWS_REGION, 'us-west-2'}
@@ -114,35 +115,35 @@ resources:
             - "ApiId"
         Tags:
           Environment: ${self:provider.stage}
-    LambdaExecutionRole:
-      Type: AWS::IAM::Role
-      Properties:
-        RoleName: biblebrain-services-lambda-role-${opt:stage, 'dev'}
-        AssumeRolePolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-            - Effect: Allow
-              Principal:
-                Service: lambda.amazonaws.com
-              Action: sts:AssumeRole
-        Policies:
-          - PolicyName: LambdaExecutionPolicy
-            PolicyDocument:
-              Version: "2012-10-17"
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - logs:CreateLogStream
-                    - logs:CreateLogGroup
-                    - logs:TagResource
-                  Resource:
-                    - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biblebrain-services-${opt:stage, 'dev'}:*
-                - Effect: Allow
-                  Action:
-                    - logs:PutLogEvents
-                  Resource:
-                    - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biblebrain-services-${opt:stage, 'dev'}:*:*
-                - Effect: Allow
-                  Action:
-                    - ssm:GetParameter
-                  Resource: "*"
+    # LambdaExecutionRole:
+    #   Type: AWS::IAM::Role
+    #   Properties:
+    #     RoleName: biblebrain-services-lambda-role-${opt:stage, 'dev'}
+    #     AssumeRolePolicyDocument:
+    #       Version: "2012-10-17"
+    #       Statement:
+    #         - Effect: Allow
+    #           Principal:
+    #             Service: lambda.amazonaws.com
+    #           Action: sts:AssumeRole
+    #     Policies:
+    #       - PolicyName: LambdaExecutionPolicy
+    #         PolicyDocument:
+    #           Version: "2012-10-17"
+    #           Statement:
+    #             - Effect: Allow
+    #               Action:
+    #                 - logs:CreateLogStream
+    #                 - logs:CreateLogGroup
+    #                 - logs:TagResource
+    #               Resource:
+    #                 - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biblebrain-services-${opt:stage, 'dev'}:*
+    #             - Effect: Allow
+    #               Action:
+    #                 - logs:PutLogEvents
+    #               Resource:
+    #                 - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/biblebrain-services-${opt:stage, 'dev'}:*:*
+    #             - Effect: Allow
+    #               Action:
+    #                 - ssm:GetParameter
+    #               Resource: "*"
