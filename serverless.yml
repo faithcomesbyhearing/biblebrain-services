@@ -42,10 +42,10 @@ package:
   patterns:
     - "!./**"
     - ./bin/**
-    - "./bootstrap" # include the root-level bootstrap binary
+    - "./bootstrap" # include the root-level bootstrap binary.
 
 functions:
-  bservice:
+  service:
     url: true
     handler: bootstrap
     timeout: 10
@@ -69,6 +69,8 @@ custom:
     prod: provided.al2023
   serverless-offline:
     useDocker: true
+    host: 0.0.0.0
+    httpPort: 3009
     lambdaPort: 8080
     lambdaHost: lambda # resolves to the `lambda` service in Docker Compose
     dockerHost: host.docker.internal
