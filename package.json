@@ -6,7 +6,7 @@
     "devDependencies": {
         "@serverless/utils": "6.15.0",
         "serverless": "<4.0.0",
-        "serverless-offline": "13.9.0",
+        "serverless-offline": "14.4.0",
         "serverless-offline-ssm": "6.2.0",
         "serverless-prune-plugin": "2.1.0",
         "serverless-s3-local": "0.8.5",
