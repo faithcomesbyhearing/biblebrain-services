@@ -37,7 +37,7 @@ package:
   patterns:
     - "!./**"
     - ./bin/**
-    - "./bootstrap"  # include the root-level bootstrap binary
+    - "./bootstrap" # include the root-level bootstrap binary
 
 functions:
   bservice:
@@ -59,13 +59,13 @@ custom:
     - dev
     - prod
   runtimeMap:
-    local: provided       # use plain “provided” when running offline locally
-    dev:   provided.al2023
-    prod:  provided.al2023
+    local: provided # use plain “provided” when running offline locally
+    dev: provided.al2023
+    prod: provided.al2023
   serverless-offline:
     useDocker: true
     lambdaPort: 8080
-    lambdaHost: lambda   # resolves to the `lambda` service in Docker Compose
+    lambdaHost: lambda # resolves to the `lambda` service in Docker Compose
     dockerHost: host.docker.internal
     dockerNetwork: bridge
     localEnvironment: true
@@ -110,3 +110,35 @@ resources:
             - "ApiId"
         Tags:
           Environment: ${self:provider.stage}
+    LambdaExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: biblebrain-services-lambda-role-${opt:stage, 'dev'}
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        Policies:
+          - PolicyName: LambdaExecutionPolicy
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - logs:CreateLogStream
+                    - logs:CreateLogGroup
+                    - logs:TagResource
+                  Resource:
+                    - arn:aws:logs:us-west-2:078432969830:log-group:/aws/lambda/biblebrain-services-${opt:stage, 'dev'}:*
+                - Effect: Allow
+                  Action:
+                    - logs:PutLogEvents
+                  Resource:
+                    - arn:aws:logs:us-west-2:078432969830:log-group:/aws/lambda/biblebrain-services-${opt:stage, 'dev'}:*:*
+                - Effect: Allow
+                  Action:
+                    - ssm:GetParameter
+                  Resource: "*"
