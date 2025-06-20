@@ -1,0 +1,50 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # [Choice] Go version 1, 1.18, 1.17
+        # Append -bullseye or -buster to pin to an OS version.
+        # Use -bullseye variants on local arm64/Apple Silicon.
+        VARIANT: "1.24-bullseye"
+        # Options
+        NODE_VERSION: "lts/*"
+    env_file:
+      # Ensure that the variables in .env match the same variables in devcontainer.json
+      - .env
+    networks:
+      - app-net
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+
+    volumes:
+      - ..:/workspace:cached
+
+    # Overrides default command so things don't shut down after the process ends.
+    command: sleep infinity
+
+    # Uncomment the next line to use a non-root user for all processes.
+    user: vscode
+    # Use "forwardPorts" in **devcontainer.json** to forward an app port locally. 
+    # (Adding the "ports" property to this file will not forward from a Codespace.)
+    # network_mode: host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  lambda:
+    platform: linux/amd64
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.lambda
+    container_name: lambda-local
+    ports:
+      - "4009:8080"                              # match your offline port
+    volumes:
+      - ../bootstrap:/var/task/bootstrap:ro  # mount your built Lambda binary
+
+networks:
+  app-net:
+    driver: bridge

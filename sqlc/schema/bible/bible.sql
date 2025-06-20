@@ -1,0 +1,105 @@
+
+CREATE TABLE `bible_filesets` (
+  `id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hash_id` char(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `asset_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `set_type_code` varchar(18) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `set_size_code` char(9) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `hidden` tinyint(1) NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `archived` tinyint(1) NOT NULL DEFAULT '0',
+  `content_loaded` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`hash_id`),
+  UNIQUE KEY `unique_prefix_for_s3` (`id`,`asset_id`,`set_type_code`),
+  KEY `bible_filesets_bucket_id_foreign` (`asset_id`),
+  KEY `bible_filesets_set_type_code_foreign` (`set_type_code`),
+  KEY `bible_filesets_set_size_code_foreign` (`set_size_code`),
+  KEY `bible_filesets_id_index` (`id`),
+  KEY `bible_filesets_hash_id_index` (`hash_id`),
+  CONSTRAINT `FK_assets_bible_filesets` FOREIGN KEY (`asset_id`) REFERENCES `assets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_bible_fileset_sizes_bible_filesets` FOREIGN KEY (`set_size_code`) REFERENCES `bible_fileset_sizes` (`set_size_code`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_bible_fileset_types_bible_filesets` FOREIGN KEY (`set_type_code`) REFERENCES `bible_fileset_types` (`set_type_code`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `bible_fileset_connections` (
+  `hash_id` char(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `bible_id` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`hash_id`,`bible_id`),
+  KEY `bible_fileset_connections_hash_id_foreign` (`hash_id`),
+  KEY `bible_fileset_connections_bible_id_index` (`bible_id`),
+  KEY `index_hash_id` (`hash_id`),
+  CONSTRAINT `FK_bible_filesets_bible_fileset_connections` FOREIGN KEY (`hash_id`) REFERENCES `bible_filesets` (`hash_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_bibles_bible_fileset_connections` FOREIGN KEY (`bible_id`) REFERENCES `bibles` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `bible_fileset_tags` (
+  `hash_id` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `admin_only` tinyint(1) NOT NULL,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `iso` char(3) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `language_id` int unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'UTC',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'UTC',
+  PRIMARY KEY (`hash_id`,`name`,`language_id`),
+  KEY `bible_fileset_tags_hash_id_index` (`hash_id`),
+  KEY `bible_fileset_tags_iso_index` (`iso`),
+  KEY `language_id` (`language_id`),
+  KEY `description` (`description`(4)),
+  KEY `hashid_name_index` (`hash_id`,`name`),
+  KEY `name_index` (`name`),
+  CONSTRAINT `FK_bible_filesets_bible_fileset_tags` FOREIGN KEY (`hash_id`) REFERENCES `bible_filesets` (`hash_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_languages_bible_fileset_tags` FOREIGN KEY (`language_id`) REFERENCES `languages` (`id`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `FK_languages_bible_fileset_tags_iso` FOREIGN KEY (`iso`) REFERENCES `languages` (`iso`) ON DELETE RESTRICT ON UPDATE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `bibles` (
+  `id` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `language_id` int unsigned NOT NULL,
+  `versification` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'protestant',
+  `numeral_system_id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `date` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `scope` varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `script` char(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `derived` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `copyright` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `priority` tinyint unsigned NOT NULL DEFAULT '0',
+  `reviewed` tinyint(1) DEFAULT '0',
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `bibles_id_unique` (`id`),
+  KEY `bibles_language_id_foreign` (`language_id`),
+  KEY `bibles_numeral_system_id_foreign` (`numeral_system_id`),
+  KEY `bibles_script_foreign` (`script`),
+  KEY `priority` (`priority`),
+  CONSTRAINT `FK_alphabets_bibles` FOREIGN KEY (`script`) REFERENCES `alphabets` (`script`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_languages_bibles` FOREIGN KEY (`language_id`) REFERENCES `languages` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_numeral_systems_bibles` FOREIGN KEY (`numeral_system_id`) REFERENCES `numeral_systems` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `bible_translations` (
+  `id` int unsigned NOT NULL AUTO_INCREMENT,
+  `language_id` int unsigned NOT NULL,
+  `bible_id` varchar(12) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `vernacular` tinyint(1) NOT NULL DEFAULT '0',
+  `vernacular_trade` tinyint(1) NOT NULL DEFAULT '0',
+  `name` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `background` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique` (`language_id`,`bible_id`,`vernacular`),
+  KEY `bible_translations_language_id_foreign` (`language_id`),
+  KEY `bible_translations_bible_id_foreign` (`bible_id`),
+  FULLTEXT KEY `ft_index_bible_translations_name` (`name`),
+  CONSTRAINT `FK_bibles_bible_translations` FOREIGN KEY (`bible_id`) REFERENCES `bibles` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `FK_languages_bible_translations` FOREIGN KEY (`language_id`) REFERENCES `languages` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=10334 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -1,0 +1,17 @@
+{
+  "version": "1.0",
+  "routeKey": "GET /api/copyright",
+  "rawPath": "/api/copyright",
+  "rawQueryString": "productCode=N2ESV&format=json&mode=audio",
+  "queryStringParameters": {
+    "productCode": "N2ESV",
+    "format": "json",
+    "mode": "audio"
+  },
+  "requestContext": {
+    "http": {
+      "method": "GET",
+      "path": "/api/copyright"
+    }
+  }
+}

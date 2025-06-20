@@ -1,0 +1,13 @@
+FROM public.ecr.aws/lambda/provided:al2023
+
+# Copy in your compiled bootstrap
+# COPY bin/bootstrap /var/task/bootstrap
+COPY bootstrap /var/task/bootstrap
+# Download and install the RIE and set bootstrap permissions
+RUN chmod +x /var/task/bootstrap && \
+    curl -fsSL https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie -o /usr/bin/aws-lambda-rie && \
+    chmod +x /usr/bin/aws-lambda-rie \
+  # and symlink it where Serverless-Offline will look
+  && ln -sf /usr/bin/aws-lambda-rie /lambda-entrypoint.sh
+
+ENTRYPOINT ["/lambda-entrypoint.sh", "/var/task/bootstrap"]
